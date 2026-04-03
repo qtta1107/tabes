@@ -211,7 +211,7 @@ function updateCameraPos() {
         let lookZ = possessedUnit.z - Math.cos(camCtrl.theta) * 100;
 
         camera.lookAt(lookX, lookY, lookZ);
-        possessedUnit.mesh.rotation.y = camCtrl.theta; // Unit faces camera direction
+         possessedUnit.mesh.rotation.y = camCtrl.theta + Math.PI; 
         return;
     } else if (possessedUnit && possessedUnit.isDead) {
         unpossess();
@@ -282,6 +282,9 @@ function possessUnit(unit) {
 
 function unpossess() {
     if (possessedUnit) {
+        // SỬA Ở ĐÂY: Bắt buộc Unit quay lại trạng thái tự tìm mục tiêu (AI)
+        possessedUnit.fsm = 'SEEK'; 
+        
         possessedUnit.mesh.headGroup.visible = true;
         if(possessedUnit.healthBarGroup && !possessedUnit.isDead && possessedUnit.status.poly <= 0) {
             possessedUnit.healthBarGroup.visible = true;
@@ -1717,8 +1720,10 @@ renderer.domElement.addEventListener('mousemove', e => {
     if (possessedUnit) {
         let dx = e.clientX - camDragData.lastX;
         let dy = e.clientY - camDragData.lastY;
-        camCtrl.theta -= dx * 0.005;
-        camCtrl.phi = GameUtils.clamp(camCtrl.phi - dy * 0.005, 0.1, Math.PI - 0.1);
+        
+        // SỬA Ở ĐÂY: Dùng dấu TRỪ (-) để chuột quay trái/phải chuẩn FPS
+        camCtrl.theta -= dx * 0.005; 
+        camCtrl.phi = GameUtils.clamp(camCtrl.phi + dy * 0.005, 0.1, Math.PI - 0.1); 
     }
 
     if (mouse.isLeftDown && Math.hypot(e.clientX - camDragData.startX, e.clientY - camDragData.startY) > 5) camDragData.isDragging = true;
