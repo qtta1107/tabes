@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Totally Accurate 3D - Multi-Map Engine</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="game-container"></div>
+    <div id="crosshair"></div>
+    <div id="possession-ui">
+        Đang Nhập Vai: <span id="possess-name" style="color: #fbbf24;">Unit</span> <br>
+        <span style="font-size: 12px; font-weight: normal; margin-top: 5px; display: block; color: #aaa;">
+            Dùng chuột để quay | <span class="key-btn">WASD</span> để đi | <span class="key-btn">Click Trái</span> để đánh | <span class="key-btn">ESC</span> để thoát
+        </span>
+    </div>
+
+    <div id="map-selection">
+        <h1>CHỌN BẢN ĐỒ CHIẾN THUẬT</h1>
+        <p>9 Chiến trường với cơ chế Vật lý và Môi trường hoàn toàn khác biệt</p>
+        <div class="map-grid" id="map-grid-container">
+            </div>
+    </div>
+
+    <div id="ui-layer">
+        <button class="action-btn" id="btn-back" title="Trở về Lobby">🏠</button>
+        <div id="top-hud" class="sleek-panel">
+            <div class="team-hud blue-text">BLUE: <span id="blue-budget">5000</span></div>
+            <div style="color: rgba(255,255,255,0.2);">|</div>
+            <div class="team-hud red-text"><span id="red-budget">5000</span> :RED</div>
+        </div>
+        
+        <div id="help-text">Trái: Đặt | Phải: Xoá | Giữa/Kéo: Di chuyển Camera <br><span style="color:#fbbf24;">[MỚI] BATTLE: Click Đúp vào lính để Nhập Vai (FPS)</span> <span id="btn-close-help" style="cursor: pointer; margin-left: 10px; color: #ef4444; font-weight: bold;">✖</span></div>
+
+        <div id="action-buttons">
+            <button class="action-btn" id="btn-sandbox" title="Toggle Sandbox Mode">♾️</button>
+            <button class="action-btn" id="btn-clear" title="Clear Board" style="color: #ef4444;">🗑️</button>
+            <button class="action-btn" id="btn-start" title="PLAY">▶</button>
+        </div>
+
+        <div id="bottom-hud" class="sleek-panel">
+            <div id="class-tabs"></div>
+            <div class="bottom-row">
+                <div id="unit-selector"></div>
+            </div>
+        </div>
+    </div>
+
+    <button id="floating-stop" title="STOP & EDIT">⏹</button>
+
+    <div id="warning-msg">Cần quân cả 2 bên!</div>
+
+    <div id="end-screen">
+        <div id="end-title">VICTORY</div>
+        <button class="action-btn" id="btn-restart" style="width: auto; padding: 15px 40px; border-radius: 30px; font-size: 20px; background: #3b82f6;">CHƠI LẠI (ENTER)</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
