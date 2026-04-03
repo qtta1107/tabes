@@ -1041,7 +1041,8 @@ class Unit {
                     this.attackTimer = this.unitType.cd; 
                     
                     if (this.typeId === 'ROCKET_GIRL' || this.typeId === 'SNIPER_CAIT' || this.typeId === 'SHOTGUN_COP') {
-                        let angle = this === possessedUnit ? -camCtrl.theta + Math.PI/2 : Math.atan2(this.target.z - this.z, this.target.x - this.x);
+                        // SỬA Ở ĐÂY: Chỉnh lại góc độ giật lùi cho chuẩn xác với góc nhìn Camera
+                        let angle = this === possessedUnit ? Math.atan2(-Math.cos(camCtrl.theta), -Math.sin(camCtrl.theta)) : Math.atan2(this.target.z - this.z, this.target.x - this.x);
                         let recoil = this.typeId === 'SNIPER_CAIT' ? 20 : (this.typeId === 'SHOTGUN_COP' ? 10 : 15);
                         this.vx -= Math.cos(angle) * recoil; this.vz -= Math.sin(angle) * recoil; this.vy += 5;
                     }
