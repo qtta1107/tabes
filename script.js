@@ -126,7 +126,7 @@ let hitStopFrames = 0; let mapTicks = 0; let globalTimeStop = 0;
 
 // POSSESSION GLOBALS
 let possessedUnit = null;
-
+let isFirstPerson = false; // Biến lưu trạng thái góc nhìn (Mặc định là false - Góc nhìn thứ 3)
 const keys = {}; 
 const mouse = { x: 0, y: 0, worldX: 0, worldY: 0, worldZ: 0, isLeftDown: false, isRightDown: false, isMidDown: false };
 let camDragData = { lastX: 0, lastY: 0, startX: 0, startY: 0, isDragging: false };
@@ -189,9 +189,8 @@ const ghostMesh = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 10, 8), ghostM
 
 const camCtrl = { targetX: 0, targetY: 0, targetZ: 0, radius: 1000, theta: 0, phi: 1.0, shakeTrauma: 0 };
 function updateCameraPos() {
-    // POSSESSION CAMERA OVERRIDE (FIRST PERSON)
+    // POSSESSION CAMERA OVERRIDE
     if (possessedUnit && !possessedUnit.isDead) {
-        possessedUnit.mesh.headGroup.visible = false; // Hide head to avoid clipping
         if(possessedUnit.healthBarGroup) possessedUnit.healthBarGroup.visible = false;
         
         let headY = possessedUnit.y + possessedUnit.unitType.height * possessedUnit.sqY + possessedUnit.radius * 0.5;
@@ -203,15 +202,32 @@ function updateCameraPos() {
             camCtrl.shakeTrauma = Math.max(0, camCtrl.shakeTrauma - 0.03); 
         }
 
-        camera.position.set(possessedUnit.x + shakeX, headY + shakeY, possessedUnit.z + shakeZ);
-        
-        // Calculate look direction based on theta and phi
-        let lookX = possessedUnit.x - Math.sin(camCtrl.theta) * 100;
-        let lookY = headY + Math.tan(Math.PI/2 - camCtrl.phi) * 100; 
-        let lookZ = possessedUnit.z - Math.cos(camCtrl.theta) * 100;
+        if (isFirstPerson) {
+            // GÓC NHÌN THỨ NHẤT (FPS)
+            possessedUnit.mesh.headGroup.visible = false;
+            camera.position.set(possessedUnit.x + shakeX, headY + shakeY, possessedUnit.z + shakeZ);
+        } else {
+            // GÓC NHÌN THỨ BA (TPS)
+            possessedUnit.mesh.headGroup.visible = true; 
+            let camDist = 60;    // Khoảng cách camera sau lưng
+            let camHeight = 25;  // Độ cao camera so với người
+            
+            let camX = possessedUnit.x + Math.sin(camCtrl.theta) * camDist + shakeX;
+            let camZ = possessedUnit.z + Math.cos(camCtrl.theta) * camDist + shakeZ;
+            let camY = headY + camHeight + shakeY;
+            camera.position.set(camX, camY, camZ);
+        }
+
+        // ĐIỂM NGẮM (Dùng chung)
+        let lookDist = 200;
+        let lookX = possessedUnit.x - Math.sin(camCtrl.theta) * lookDist;
+        let lookY = headY + Math.tan(Math.PI/2 - camCtrl.phi) * lookDist; 
+        let lookZ = possessedUnit.z - Math.cos(camCtrl.theta) * lookDist;
 
         camera.lookAt(lookX, lookY, lookZ);
-         possessedUnit.mesh.rotation.y = camCtrl.theta + Math.PI; 
+        
+        // Cập nhật hướng cho mô hình Unit (Cộng Math.PI để thân hình hướng ra trước)
+        possessedUnit.mesh.rotation.y = camCtrl.theta + Math.PI; 
         return;
     } else if (possessedUnit && possessedUnit.isDead) {
         unpossess();
@@ -273,30 +289,32 @@ function updateMouseWorld() {
 function possessUnit(unit) {
     if (possessedUnit) unpossess();
     possessedUnit = unit;
+    isFirstPerson = false; // Mặc định vào là góc nhìn thứ 3
     document.getElementById('crosshair').style.display = 'block';
-    document.getElementById('possession-ui').style.display = 'block';
+    document.getElementById('skills-ui').style.display = 'flex'; // Hiện UI mới
     document.getElementById('possess-name').innerText = unit.unitType.name;
-    document.getElementById('possess-name').style.color = unit.team === 'blue' ? '#3b82f6' : '#ef4444';
-    camCtrl.phi = Math.PI / 2; // Look straight ahead initially
+    camCtrl.phi = Math.PI / 2.2; // Góc nhìn hơi chúc xuống một chút
 }
 
 function unpossess() {
     if (possessedUnit) {
-        // SỬA Ở ĐÂY: Bắt buộc Unit quay lại trạng thái tự tìm mục tiêu (AI)
-        possessedUnit.fsm = 'SEEK'; 
-        
+        possessedUnit.fsm = 'SEEK'; // FIX: Trả Unit về trạng thái tự động đánh
         possessedUnit.mesh.headGroup.visible = true;
         if(possessedUnit.healthBarGroup && !possessedUnit.isDead && possessedUnit.status.poly <= 0) {
             possessedUnit.healthBarGroup.visible = true;
         }
         
-        // Reset camera target to unit's last position
         camCtrl.targetX = possessedUnit.x; camCtrl.targetZ = possessedUnit.z; 
         camCtrl.radius = 400; camCtrl.phi = 1.0;
         
         possessedUnit = null;
         document.getElementById('crosshair').style.display = 'none';
-        document.getElementById('possession-ui').style.display = 'none';
+        document.getElementById('skills-ui').style.display = 'none'; // Ẩn UI mới
+        
+        // FIX BUG CAMERA: Đặt lại trạng thái chuột để tránh bị kẹt kéo lê
+        mouse.isLeftDown = false;
+        mouse.isRightDown = false;
+        camDragData.isDragging = false;
     }
 }
 
@@ -842,14 +860,14 @@ class Unit {
         let groundY = getGroundHeight(this.x, this.z);
 
         // ==========================================
-        // POSSESSION CONTROL LOGIC
+        // POSSESSION CONTROL LOGIC & SKILLS
         // ==========================================
         if (this === possessedUnit && !this.isDead && canMove && this.status.poly <= 0) {
-            let moveSpeed = this.unitType.speed * 2.0; // Đi nhanh hơn xíu khi tự lái
+            let moveSpeed = this.unitType.speed * 2.5; // Tăng nhẹ tốc độ khi tự lái cho mượt
             let fwX = -Math.sin(camCtrl.theta), fwZ = -Math.cos(camCtrl.theta);
             let rtX = Math.cos(camCtrl.theta), rtZ = -Math.sin(camCtrl.theta);
             
-            // Xử lý WASD
+            // Xử lý di chuyển WASD
             if(keys['w']) { this.vx += fwX * moveSpeed; this.vz += fwZ * moveSpeed; }
             if(keys['s']) { this.vx -= fwX * moveSpeed; this.vz -= fwZ * moveSpeed; }
             if(keys['a']) { this.vx -= rtX * moveSpeed; this.vz -= rtZ * moveSpeed; }
@@ -858,15 +876,53 @@ class Unit {
             // Nhảy
             if(keys[' ']) { if(this.y <= groundY + 1 && this.fsm !== 'JUMP_SLAM') this.vy = 18; }
 
-            // Đánh thường (Click chuột trái)
+            // Khởi tạo thời gian hồi chiêu nếu chưa có
+            if (!this.playerSkillCd) this.playerSkillCd = { j: 0, k: 0, l: 0 };
+            if (this.playerSkillCd.j > 0) this.playerSkillCd.j--;
+            if (this.playerSkillCd.k > 0) this.playerSkillCd.k--;
+            if (this.playerSkillCd.l > 0) this.playerSkillCd.l--;
+
+            // Tính toán vị trí tâm ngắm (Crosshair) để ném chiêu chuẩn xác
+            let aimDist = 150;
+            let aimX = this.x - Math.sin(camCtrl.theta) * aimDist;
+            let aimZ = this.z - Math.cos(camCtrl.theta) * aimDist;
+            let aimTarget = { x: aimX, y: getGroundHeight(aimX, aimZ), z: aimZ, unitType: {height: 0}, isDead: false, takeDamage: ()=>{} };
+
+            // Chuột Trái (Đánh thường)
             if(mouse.isLeftDown && this.attackTimer <= 0 && !['JUMP_SLAM','SPIN','EXECUTE_WINDUP','EXECUTE_SPIN','DAGGER_SPIN','DASH'].includes(this.fsm)) {
                 this.fsm = 'ATTACK';
                 this.timer = this.typeId.includes('NINJA')||this.typeId.includes('DAGGER')? 5: 15;
             }
 
+            // Phím J: Kỹ năng lướt (Dash) hoặc Đập đất (Slam) tùy vào khối lượng Unit
+            if(keys['j'] && this.playerSkillCd.j <= 0 && this.fsm !== 'JUMP_SLAM' && this.fsm !== 'DASH') {
+                if (this.mass >= 3 || this.typeId.includes('TANK')) {
+                    this.fsm = 'JUMP_SLAM'; this.vy = 30; // Unit nặng thì nhảy đập
+                } else {
+                    this.fsm = 'DASH'; this.timer = 15; // Unit nhẹ thì lướt
+                    this.mesh.rotation.y = camCtrl.theta + Math.PI; // Lướt theo hướng nhìn
+                }
+                this.playerSkillCd.j = 100; // Hồi chiêu
+            }
+
+            // Phím K: Bắn đạn / Ném bom nổ
+            if(keys['k'] && this.playerSkillCd.k <= 0) {
+                // Tùy theo loại Unit mà bắn ra thứ khác nhau
+                let pType = this.typeId.includes('MAGE') ? 'FIRE_ORB' : (this.typeId.includes('TECH') ? 'ROCKET' : 'BOMB');
+                createProjectile(this.x, this.y + this.unitType.height, this.z, aimTarget, this.unitType.damage * 2, this.team, pType);
+                this.playerSkillCd.k = 150; 
+                this.vy += 5; // Giật nhẹ lên
+            }
+
+            // Phím L: Triệu hồi Hố Đen hút địch
+            if(keys['l'] && this.playerSkillCd.l <= 0) {
+                createProjectile(aimTarget.x, aimTarget.y + 15, aimTarget.z, null, this.unitType.damage * 2, this.team, 'BLACK_HOLE');
+                this.playerSkillCd.l = 350; 
+                addShake(0.5);
+            }
+
             if (this.attackTimer > 0) this.attackTimer--;
         }
-
         this.x += this.vx; this.z += this.vz;
         
         groundY = getGroundHeight(this.x, this.z);
@@ -1687,6 +1743,11 @@ window.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true; 
     if(e.key === 'Enter') toggleBattle(); 
     if(e.key === 'Escape') unpossess();
+    
+    // TÍNH NĂNG ĐỔI GÓC NHÌN BẰNG PHÍM C
+    if(e.key.toLowerCase() === 'c' && possessedUnit) {
+        isFirstPerson = !isFirstPerson;
+    }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 

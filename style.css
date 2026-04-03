@@ -144,10 +144,26 @@ body.is-battle #floating-stop:hover { opacity: 1; transform: scale(1.05);}
 #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
 #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
 
-#possession-ui {
-    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px; border-radius: 20px;
-    font-size: 14px; font-weight: bold; pointer-events: none; display: none; z-index: 150;
-    border: 1px solid rgba(255,255,255,0.2); text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+/* --- UI KỸ NĂNG KHI NHẬP VAI --- */
+#skills-ui {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: none; flex-direction: column; align-items: center; z-index: 150;
+    pointer-events: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-.key-btn { background: #333; padding: 2px 6px; border-radius: 4px; margin: 0 2px; font-family: monospace; color: #fbbf24;}
+.skills-container { 
+    display: flex; gap: 5px; background: rgba(0, 0, 0, 0.5); 
+    padding: 10px 20px; border-radius: 8px 8px 0 0; 
+}
+.skill-box {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(15, 23, 42, 0.9); border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 8px; width: 65px; height: 65px; color: white;
+    border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+.skill-key { font-weight: 900; font-size: 18px; margin-bottom: 5px; color: #fbbf24; }
+.skill-name { font-size: 9px; text-transform: uppercase; color: #cbd5e1; text-align: center; font-weight: bold;}
+.skill-footer {
+    background: rgba(255, 255, 255, 0.9); color: black; font-weight: 900;
+    padding: 8px 20px; font-size: 13px; width: 100%; text-align: center; 
+    box-sizing: border-box; border-radius: 0 0 8px 8px;
+}
