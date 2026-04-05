@@ -894,31 +894,17 @@ class Unit {
                 this.timer = this.typeId.includes('NINJA')||this.typeId.includes('DAGGER')? 5: 15;
             }
 
-            // Phím J: Kỹ năng lướt (Dash) hoặc Đập đất (Slam) tùy vào khối lượng Unit
-            if(keys['j'] && this.playerSkillCd.j <= 0 && this.fsm !== 'JUMP_SLAM' && this.fsm !== 'DASH') {
-                if (this.mass >= 3 || this.typeId.includes('TANK')) {
-                    this.fsm = 'JUMP_SLAM'; this.vy = 30; // Unit nặng thì nhảy đập
-                } else {
-                    this.fsm = 'DASH'; this.timer = 15; // Unit nhẹ thì lướt
-                    this.mesh.rotation.y = camCtrl.theta + Math.PI; // Lướt theo hướng nhìn
-                }
-                this.playerSkillCd.j = 100; // Hồi chiêu
+// --- HỆ THỐNG PHÂN LOẠI KỸ NĂNG THEO UNIT ---
+            let isCasting = ['JUMP_SLAM','DASH','SPIN','EXECUTE_WINDUP','EXECUTE_SPIN','DAGGER_SPIN'].includes(this.fsm);
+            
+            if(keys['j'] && this.playerSkillCd.j <= 0 && !isCasting) {
+                this.executePossessedSkill('J', aimTarget);
             }
-
-            // Phím K: Bắn đạn / Ném bom nổ
-            if(keys['k'] && this.playerSkillCd.k <= 0) {
-                // Tùy theo loại Unit mà bắn ra thứ khác nhau
-                let pType = this.typeId.includes('MAGE') ? 'FIRE_ORB' : (this.typeId.includes('TECH') ? 'ROCKET' : 'BOMB');
-                createProjectile(this.x, this.y + this.unitType.height, this.z, aimTarget, this.unitType.damage * 2, this.team, pType);
-                this.playerSkillCd.k = 150; 
-                this.vy += 5; // Giật nhẹ lên
+            if(keys['k'] && this.playerSkillCd.k <= 0 && !isCasting) {
+                this.executePossessedSkill('K', aimTarget);
             }
-
-            // Phím L: Triệu hồi Hố Đen hút địch
-            if(keys['l'] && this.playerSkillCd.l <= 0) {
-                createProjectile(aimTarget.x, aimTarget.y + 15, aimTarget.z, null, this.unitType.damage * 2, this.team, 'BLACK_HOLE');
-                this.playerSkillCd.l = 350; 
-                addShake(0.5);
+            if(keys['l'] && this.playerSkillCd.l <= 0 && !isCasting) {
+                this.executePossessedSkill('L', aimTarget);
             }
 
             if (this.attackTimer > 0) this.attackTimer--;
@@ -1281,6 +1267,80 @@ class Unit {
             } 
         }
     }
+   executePossessedSkill(key, aimTarget) {
+        let finalDmg = this.unitType.damage;
+        let angle = Math.atan2(aimTarget.z - this.z, aimTarget.x - this.x);
+        let uClass = this.unitType.class;
+
+        // ================= CHIÊU 1 (PHÍM J) =================
+        if (key === 'J') { 
+            this.playerSkillCd.j = 80;
+            // 1. Phân loại Unit đặc biệt
+            if (['DASH_XIN', 'PHANTOM_STRIKE', 'SHADOW_ZED'].includes(this.typeId)) { this.fsm = 'DASH'; this.timer = 15; this.mesh.rotation.y = camCtrl.theta + Math.PI; }
+            else if (['DUELIST', 'ASURA_GOD', 'DAGGER_KATA', 'AXE_BERSERK'].includes(this.typeId)) { this.fsm = this.typeId==='DAGGER_KATA'?'DAGGER_SPIN':(this.typeId==='AXE_BERSERK'?'EXECUTE_WINDUP':'SPIN'); this.timer = 120; }
+            else if (['ROLLING_RAM'].includes(this.typeId)) { this.fsm = 'SEEK'; this.unitType.speed = 3.0; this.mesh.rotation.x += 0.8; }
+            else if (['ELASTIC_ZAC', 'STONE_MALPH', 'TITAN_COLOSSUS', 'RAGE_SETT'].includes(this.typeId)) { this.fsm = 'JUMP_SLAM'; this.vy = 30; }
+            else if (['ANCHOR_NAUT', 'HOOK_BLITZ'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'HOOK'); }
+            else if (['ICE_LISS'].includes(this.typeId)) { explode(this.x, this.z, 50, finalDmg, this.team, false); }
+            else if (['PORTAL_ZOE'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'PORTAL_BOLT'); }
+            else if (['MAGE_BOSS'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg*2, this.team, 'GIANT_ORB'); }
+            else if (['CHRONO_LORD', 'GRAVITY_MAGE', 'VORTEX_MAGE'].includes(this.typeId)) { createProjectile(aimTarget.x, aimTarget.y+5, aimTarget.z, null, finalDmg, this.team, 'BLACK_HOLE'); }
+            else if (['WIND_FAIRY'].includes(this.typeId)) { createProjectile(this.x, this.y+5, this.z, aimTarget, finalDmg, this.team, 'TORNADO'); }
+            else if (['ARCHANGEL'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'WIDE_BEAM'); }
+            else if (['ORBITAL_MECH', 'DOOMSDAY_MECH'].includes(this.typeId)) { createProjectile(this.x, this.y+20, this.z, aimTarget, finalDmg*2, this.team, 'MEGA_ROCKET'); }
+            // 2. Fallback theo Hệ (Class)
+            else if (uClass === 'Bruiser' || uClass === 'Assassin') { this.fsm = 'ATTACK'; this.timer = 15; }
+            else if (uClass === 'Tank') { this.fsm = 'JUMP_SLAM'; this.vy = 20; }
+            else if (uClass === 'Ranged') { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'ARROW'); }
+            else if (uClass === 'Mage') { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'FIRE_ORB'); }
+            else if (uClass === 'Tech') { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'ROCKET'); }
+            else { this.fsm = 'ATTACK'; this.timer = 15; }
+        }
+
+        // ================= CHIÊU 2 (PHÍM K) =================
+        else if (key === 'K') { 
+            this.playerSkillCd.k = 150;
+            if (['SPEARMAN'].includes(this.typeId)) { this.fsm = 'ATTACK'; this.timer = 15; this.attackCount = 2; } // Ép kích hoạt đòn hất tung
+            else if (['DUELIST', 'ASURA_GOD'].includes(this.typeId)) { this.fsm = 'JUMP_SLAM'; this.vy = 30; }
+            else if (['ANCHOR_NAUT'].includes(this.typeId)) { createProjectile(this.x, this.y+5, this.z, aimTarget, finalDmg, this.team, 'WAVE'); }
+            else if (['STONE_MALPH', 'TITAN_COLOSSUS'].includes(this.typeId)) { this.fsm = 'JUMP_SLAM'; this.vy = 40; }
+            else if (['ICE_LISS'].includes(this.typeId)) { this.status.freeze=180; this.status.invul=180; this.hp=Math.min(this.maxHp, this.hp+300); spawnParticles(this.x, 10, this.z, 0x60a5fa, 'glow', 40); }
+            else if (['STORM_LUX'].includes(this.typeId)) { lightnings.push(new Lightning(this.x, this.y+10, this.z, aimTarget.x, aimTarget.y+5, aimTarget.z, 0xfde047)); aimTarget.takeDamage(finalDmg,0,0,0); triggerHitStop(3); }
+            else if (['MAGE_BOSS'].includes(this.typeId)) { createProjectile(this.x, this.y+5, this.z, aimTarget, finalDmg, this.team, 'ARCANE_NOVA'); }
+            else if (['CHRONO_LORD'].includes(this.typeId)) { createProjectile(this.x, this.y+15, this.z, aimTarget, finalDmg, this.team, 'BEAM'); aimTarget.attackTimer=aimTarget.unitType.cd; }
+            else if (['DAGGER_KATA'].includes(this.typeId)) { this.fsm = 'DASH'; this.timer=10; this.mesh.rotation.y = angle; }
+            else if (['SHADOW_ZED', 'BLINK_KASS', 'PORTAL_ZOE'].includes(this.typeId)) { this.x = aimTarget.x; this.z = aimTarget.z; spawnParticles(this.x, this.y, this.z, 0xd946ef, 'glow', 10); }
+            else if (['GRIM_REAPER'].includes(this.typeId)) { this.isStealth=true; this.stealthTimer=180; this.mesh.traverse(c=>{if(c.isMesh&&c.material){c.material.transparent=true; c.material.opacity=0.2;}}); }
+            else if (['CHAIN_FATE', 'LIFE_WEAVER', 'BATTLE_PRIEST'].includes(this.typeId)) { createProjectile(this.x, this.y+5, this.z, aimTarget, finalDmg, this.team, 'HEAL_WAVE'); }
+            else if (['ARCHANGEL'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'WIDE_BEAM'); }
+            else if (['ORBITAL_MECH'].includes(this.typeId)) { createProjectile(aimTarget.x, 800, aimTarget.z, aimTarget, finalDmg, this.team, 'ORBITAL_BEAM'); }
+            else if (['DOOMSDAY_MECH'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'WIDE_BEAM'); }
+            else if (['BANANA_KNT'].includes(this.typeId)) { for(let i=0;i<4;i++) createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'BANANA'); }
+            else if (['GAS_GUY', 'HACKER_BOY'].includes(this.typeId)) { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg, this.team, 'GAS'); }
+            else if (['THE_GLITCH'].includes(this.typeId)) { aimTarget.takeDamage(9999, 0,0,0); spawnParticles(aimTarget.x, aimTarget.y+5, aimTarget.z, 0x00ff00, 'glow', 30); }
+            // Fallback Chiêu 2
+            else if (uClass === 'Bruiser' || uClass === 'Tank') { this.fsm = 'JUMP_SLAM'; this.vy = 25; }
+            else if (uClass === 'Mage') { createProjectile(aimTarget.x, aimTarget.y+5, aimTarget.z, null, finalDmg, this.team, 'BLACK_HOLE'); }
+            else { createProjectile(this.x, this.y+10, this.z, aimTarget, finalDmg*2, this.team, 'BOMB'); }
+        }
+
+        // ================= CHIÊU 3 / TUYỆT KỸ (PHÍM L) =================
+        else if (key === 'L') { 
+            this.playerSkillCd.l = 300;
+            if (['ASURA_GOD'].includes(this.typeId)) { this.unitType.speed = 2.5; explode(this.x, this.z, 80, 100, this.team, false); spawnParticles(this.x, this.y, this.z, 0xdc2626, 'fire', 20); }
+            else if (['TITAN_COLOSSUS'].includes(this.typeId)) { spawnGroundMark(this.x, this.z, 200, 0x292524, false); addShake(1.5); for(let e of entities) { if(e.team !== this.team && !e.isDead && Math.hypot(e.x-this.x, e.z-this.z) < 200) e.status.stun = 120; } }
+            else if (['MAGE_BOSS'].includes(this.typeId)) { for(let i=0; i<8; i++) { setTimeout(() => { let mx = aimTarget.x + (Math.random()-0.5)*150; let mz = aimTarget.z + (Math.random()-0.5)*150; createProjectile(mx, 300, mz, {x: mx, y: 0, z: mz, unitType: {height: 0}}, finalDmg * 1.5, this.team, 'METEOR'); }, i * 150); } }
+            else if (['CHRONO_LORD'].includes(this.typeId)) { globalTimeStop = 180; spawnGroundMark(this.x, this.z, 200, 0x0f172a, true); addShake(1.5); for(let e of entities) { if(e.team !== this.team && !e.isDead) e.status.freeze = 180; } }
+            else if (['GRIM_REAPER'].includes(this.typeId)) { this.x = aimTarget.x - Math.cos(angle)*10; this.z = aimTarget.z - Math.sin(angle)*10; aimTarget.takeDamage(9999,0,0,0); this.hp = Math.min(this.maxHp, this.hp + 500); spawnParticles(this.x, this.y+10, this.z, 0x000000, 'smoke', 20); }
+            else if (['ARCHANGEL'].includes(this.typeId)) { createProjectile(this.x, this.y+5, this.z, aimTarget, finalDmg, this.team, 'HEAL_WAVE'); for(let e of entities) { if(e.team === this.team && !e.isDead) { e.hp = Math.min(e.maxHp, e.hp + 1000); e.status.invul = 90; spawnParticles(e.x, e.y+5, e.z, 0xffffff, 'glow', 10); } } }
+            else if (['DOOMSDAY_MECH'].includes(this.typeId)) { explode(this.x, this.z, 300, 9999, this.team, true); spawnGroundMark(this.x, this.z, 200, 0x000000, true); this.hp = 0; this.isDead = true; } // Tự hủy
+            else if (['THE_GLITCH'].includes(this.typeId)) { aimTarget.status.poly = 9999; spawnParticles(aimTarget.x, aimTarget.y+5, aimTarget.z, 0x00ff00, 'glow', 30); }
+            // Fallback Chiêu 3
+            else if (uClass === 'Mage' || uClass === 'Support') { createProjectile(aimTarget.x, aimTarget.y+5, aimTarget.z, null, finalDmg, this.team, 'BLACK_HOLE'); }
+            else if (uClass === 'Ranged' || uClass === 'Tech') { createProjectile(aimTarget.x, 300, aimTarget.z, aimTarget, finalDmg*2, this.team, 'METEOR'); }
+            else { this.fsm = 'JUMP_SLAM'; this.vy = 40; } // Siêu đập đất
+        }
+    } 
 }
 
 // --- PROJECTILES & EFFECTS ---
